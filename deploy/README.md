@@ -57,7 +57,25 @@ chmod 600 .env
 ```
 
 No system-wide pip installs — the venv keeps our deps off the host so the other
-apps' Python environments never change.
+apps' Python environments never change. `requirements.txt` is wheel-only (no
+compiler), so it installs fast even on this low-RAM box.
+
+> **The quant/broker deps (pandas, numpy, ccxt) are in `requirements-optional.txt`,
+> not installed by default.** On Python 3.14 they compile from source and will
+> OOM a small VPS. Install them only when the aggregation features need them, and
+> add swap first (below). v1 doesn't use them.
+
+### Optional: add swap (recommended — this box was memory-tight)
+
+Your `free -h` showed ~129 MiB free with swap already full. A little extra swap
+keeps the Node builds (and any future source builds) from getting OOM-killed:
+
+```bash
+sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile
+sudo mkswap /swapfile && sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+free -h   # confirm swap grew
+```
 
 ## 3. Node gateway + built SPA (project-local runtime)
 
