@@ -23,6 +23,9 @@ app.all("/api/ai/*", async (req, reply) => {
     body: ["GET", "HEAD"].includes(req.method) ? undefined : JSON.stringify(req.body ?? {}),
   });
   reply.code(res.statusCode);
+  // Preserve content-type so SSE streams (AskAI) pass through as event-streams.
+  const ct = res.headers["content-type"];
+  if (ct) reply.header("content-type", ct);
   return res.body;
 });
 

@@ -7,6 +7,16 @@ class Settings(BaseSettings):
     ai_host: str = "127.0.0.1"
     ai_port: int = 8792
 
+    # Which LLM backend to use: "openai" (now) or "anthropic" (later).
+    # Flip this one value to switch providers — no code change.
+    ai_provider: str = "openai"
+
+    # OpenAI (used while ai_provider == "openai")
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
+    openai_sentiment_model: str = "gpt-4o-mini"
+
+    # Anthropic (used while ai_provider == "anthropic")
     anthropic_api_key: str = ""
     claude_model: str = "claude-opus-4-8"
     claude_sentiment_model: str = "claude-haiku-4-5"
