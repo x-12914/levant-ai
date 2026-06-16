@@ -5,7 +5,7 @@ class Settings(BaseSettings):
     """Loaded from environment / .env. See .env.example."""
 
     ai_host: str = "127.0.0.1"
-    ai_port: int = 8082
+    ai_port: int = 8792
 
     anthropic_api_key: str = ""
     claude_model: str = "claude-opus-4-8"

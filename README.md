@@ -44,13 +44,13 @@ cd apps/web && npm install && npm run dev          # http://127.0.0.1:5173
 
 # 2. Gateway
 cd services/gateway && npm install
-cp .env.example .env && npm run dev                # 127.0.0.1:8081
+cp .env.example .env && npm run dev                # 127.0.0.1:8791
 
 # 3. AI service
 cd services/ai && python -m venv .venv
 .venv/bin/pip install -r requirements.txt          # Windows: .venv\Scripts\pip
 cp .env.example .env   # set ANTHROPIC_API_KEY
-.venv/bin/python -m app.main                       # 127.0.0.1:8082
+.venv/bin/python -m app.main                       # 127.0.0.1:8792
 ```
 
 The dashboard renders with mock read-only data out of the box; the gateway and

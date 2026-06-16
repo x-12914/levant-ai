@@ -19,6 +19,23 @@ containers. Read this top to bottom before the first deploy.
 > spots** before installing the units (step 5). Isolation still comes from the
 > systemd resource caps + hardening; you just skip the separate-user layer.
 
+## 0. Pick free loopback ports
+
+Both services listen on `127.0.0.1` only (nginx is the public face), so they
+just need to be free among your **local** listeners. Defaults are gateway
+**8791**, AI **8792**. Check they're unused:
+
+```bash
+sudo ss -tlnp | grep -E ':8791|:8792' || echo "both free"
+```
+
+If either is taken, pick two other free ports and change them in exactly three
+places (all under `/opt/levant`):
+
+1. `services/gateway/.env` → `PORT=` and `AI_SERVICE_URL=...:<ai-port>`
+2. `services/ai/.env` → `AI_PORT=`
+3. `deploy/nginx/levant.conf` → both `proxy_pass http://127.0.0.1:<gateway-port>;`
+
 ## 1. Place the code
 
 ```bash
