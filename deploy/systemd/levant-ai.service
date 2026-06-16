@@ -4,13 +4,14 @@
 # on the shared VPS — tune MemoryMax/CPUQuota to the headroom you confirmed.
 
 [Unit]
-Description=Levant AI AI service (FastAPI)
+Description=Levant AI service (FastAPI)
 After=network.target
 
 [Service]
 Type=simple
-User=levant
-Group=levant
+# Runs as your existing login user. Change to your username if it isn't "opt".
+User=opt
+Group=opt
 WorkingDirectory=/opt/levant/services/ai
 EnvironmentFile=/opt/levant/services/ai/.env
 ExecStart=/opt/levant/services/ai/.venv/bin/python -m app.main

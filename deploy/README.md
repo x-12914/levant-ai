@@ -7,60 +7,62 @@ containers. Read this top to bottom before the first deploy.
 > **This deployment's confirmed setup:**
 > - OS: **Ubuntu 22.04**
 > - Reverse proxy: **existing nginx** (we add one vhost and reload — never restart)
-> - Name + TLS: **DuckDNS hostname + `certbot --nginx`** (step 7)
-> - Database: **dedicated DB + role on your existing Postgres** (step 5)
+> - Name + TLS: **DuckDNS hostname + `certbot --nginx`** (step 6)
+> - Database: **dedicated DB + role on your existing Postgres** (step 4)
 > - RAM: **conservative systemd caps** (320M AI + 256M gateway ≈ 0.58 GB total),
 >   chosen because the box showed 1.5 GiB available with swap already full
+> - User: **runs as your existing login user** (no dedicated service user)
 
-## 1. Dedicated unprivileged user
+> **Running as your own user** (`opt` here). The unit files in
+> `deploy/systemd/` hardcode `User=opt`, `Group=opt`, and `/home/opt/.nvm` in
+> the gateway's `ExecStart`. **If your username is not `opt`, change those three
+> spots** before installing the units (step 5). Isolation still comes from the
+> systemd resource caps + hardening; you just skip the separate-user layer.
 
-```bash
-sudo useradd --system --create-home --shell /bin/bash levant
-sudo mkdir -p /opt/levant
-sudo chown -R levant:levant /opt/levant
-```
-
-Everything below runs as `levant`. It has no access to the other apps.
-
-## 2. Lay down the code
+## 1. Place the code
 
 ```bash
-# from your build machine / CI, sync the repo (minus node_modules) to:
-#   /opt/levant/services/ai
-#   /opt/levant/services/gateway
-#   /opt/levant/web        <- built SPA (apps/web `npm run build` -> dist/)
+sudo mkdir -p /opt/levant && sudo chown -R "$USER":"$USER" /opt/levant
+git clone https://github.com/x-12914/levant-ai.git /opt/levant
 ```
 
-## 3. Python AI service (self-contained venv)
+If `/opt/levant` already exists from an earlier attempt and the clone refuses,
+clear it first: `sudo rm -rf /opt/levant && sudo mkdir -p /opt/levant && sudo chown "$USER":"$USER" /opt/levant`.
+
+## 2. Python AI service (self-contained venv)
 
 ```bash
 cd /opt/levant/services/ai
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-cp .env.example .env && nano .env     # set ANTHROPIC_API_KEY, SECRETS_MASTER_KEY
+cp .env.example .env && nano .env     # set ANTHROPIC_API_KEY, SECRETS_MASTER_KEY, DATABASE_URL
 chmod 600 .env
 ```
 
 No system-wide pip installs — the venv keeps our deps off the host so the other
 apps' Python environments never change.
 
-## 4. Node gateway (project-local runtime)
+## 3. Node gateway + built SPA (project-local runtime)
 
 ```bash
-# install Node via nvm AS THE levant USER (no global/system Node change)
-sudo -iu levant bash -lc '
-  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
-  source ~/.nvm/nvm.sh && nvm install 22 && nvm use 22'
+# nvm in your home dir — no global/system Node change, so other apps are untouched
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+source ~/.nvm/nvm.sh && nvm install 22
+
+# build the gateway and the SPA
+cd /opt/levant/services/gateway && npm ci && npm run build
+cd /opt/levant/apps/web && npm ci && npm run build
+ln -s /opt/levant/apps/web/dist /opt/levant/web   # where the nginx vhost looks
 
 cd /opt/levant/services/gateway
-sudo -iu levant bash -lc 'cd /opt/levant/services/gateway && npm ci && npm run build'
-cp .env.example .env && nano .env && chmod 600 .env
+cp .env.example .env && nano .env && chmod 600 .env   # set JWT_SECRET, DATABASE_URL
 ```
 
-Update the `ExecStart` node path in `levant-gateway.service` to match the
-nvm version you installed.
+The gateway unit starts Node through a login shell that sources nvm, so there's
+no hardcoded Node version to keep in sync — just confirm `which node` works after
+`source ~/.nvm/nvm.sh`.
 
-## 5. Database — dedicated DB + role on your existing Postgres
+## 4. Database — dedicated DB + role on your existing Postgres
 
 You already run Postgres, so we add an isolated database and a least-privilege
 role to it. This does not touch your other apps' databases.
@@ -85,7 +87,7 @@ databases your other apps use.
 dedicated logical index — `REDIS_URL=redis://127.0.0.1:6379/3`. If not, skip it
 for now; nothing in v1 requires it yet.
 
-## 6. systemd services (with resource caps)
+## 5. systemd services (with resource caps)
 
 **First, check your RAM headroom** so the caps are safe:
 
@@ -96,7 +98,7 @@ systemd-cgtop -1 -m     # what the other apps/Postgres currently use (press q)
 
 The shipped caps total **~0.58 GB** (`MemoryMax=320M` AI + `256M` gateway) —
 already lowered for this box, which reported **1.5 GiB available with swap full**.
-Reference if your numbers change:
+(`free -h` is step 5's check.) Reference if your numbers change:
 
 - **`available` ≥ ~1.5 GB** → the shipped 320M/256M is safe; you may raise to
   512M/384M once you've watched real usage.
@@ -110,8 +112,8 @@ Reference if your numbers change:
 Then install and start:
 
 ```bash
-sudo cp deploy/systemd/levant-ai.service      /etc/systemd/system/
-sudo cp deploy/systemd/levant-gateway.service /etc/systemd/system/
+sudo cp /opt/levant/deploy/systemd/levant-ai.service      /etc/systemd/system/
+sudo cp /opt/levant/deploy/systemd/levant-gateway.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now levant-ai levant-gateway
 systemctl status levant-ai levant-gateway
@@ -121,7 +123,7 @@ systemctl status levant-ai levant-gateway
 that guarantee Levant AI cannot starve Postgres or your other apps. Start low;
 raise only after watching real usage (`systemctl status` shows live memory).
 
-## 7. Name + TLS (DuckDNS + certbot) and the nginx vhost
+## 6. Name + TLS (DuckDNS + certbot) and the nginx vhost
 
 1. **Point a DuckDNS hostname at the VPS** — in the DuckDNS dashboard set your
    subdomain (e.g. `yourname`) to the server's public IP. Confirm:
@@ -131,7 +133,7 @@ raise only after watching real usage (`systemctl status` shows live memory).
 2. **Install the vhost** (HTTP only — certbot adds TLS next):
 
    ```bash
-   sudo cp deploy/nginx/levant.conf /etc/nginx/sites-available/levant
+   sudo cp /opt/levant/deploy/nginx/levant.conf /etc/nginx/sites-available/levant
    # set server_name to your DuckDNS host:
    sudo sed -i 's/<yourname>.duckdns.org/yourname.duckdns.org/' \
      /etc/nginx/sites-available/levant
@@ -150,7 +152,7 @@ raise only after watching real usage (`systemctl status` shows live memory).
 Both services bind to `127.0.0.1` only — nginx is the sole public face. Auto-renewal
 is handled by certbot's systemd timer (`systemctl status certbot.timer`).
 
-## 8. Log rotation (don't fill the disk)
+## 7. Log rotation (don't fill the disk)
 
 ```
 # /etc/logrotate.d/levant
@@ -167,9 +169,11 @@ is handled by certbot's systemd timer (`systemctl status certbot.timer`).
 ## Updating
 
 ```bash
-# sync new code, then:
+cd /opt/levant && git pull
 cd /opt/levant/services/ai && .venv/bin/pip install -r requirements.txt
-cd /opt/levant/services/gateway && sudo -iu levant bash -lc 'cd $PWD && npm ci && npm run build'
+source ~/.nvm/nvm.sh
+cd /opt/levant/services/gateway && npm ci && npm run build
+cd /opt/levant/apps/web && npm ci && npm run build
 sudo systemctl restart levant-ai levant-gateway
 ```
 
@@ -179,7 +183,7 @@ sudo systemctl restart levant-ai levant-gateway
 sudo systemctl disable --now levant-ai levant-gateway
 sudo rm /etc/systemd/system/levant-*.service && sudo systemctl daemon-reload
 sudo rm /etc/nginx/sites-enabled/levant && sudo systemctl reload nginx
-sudo userdel -r levant && sudo rm -rf /opt/levant
+sudo rm -rf /opt/levant
 ```
 
 Nothing here touches the other apps' files, ports, deps, or services.

@@ -1,5 +1,6 @@
 # Levant AI Node gateway / BFF (Fastify + WebSocket).
-# Depends on the AI service. Adjust the Node path for your nvm install.
+# Runs as your existing login user. If your user is not "opt", change User/Group
+# below and the .nvm path in ExecStart to match your home directory.
 
 [Unit]
 Description=Levant AI gateway (Node/Fastify)
@@ -8,12 +9,14 @@ Wants=levant-ai.service
 
 [Service]
 Type=simple
-User=levant
-Group=levant
+User=opt
+Group=opt
 WorkingDirectory=/opt/levant/services/gateway
 EnvironmentFile=/opt/levant/services/gateway/.env
-# Use an absolute node path (e.g. an nvm-installed runtime under the service user).
-ExecStart=/home/levant/.nvm/versions/node/v22.11.0/bin/node dist/index.js
+# Login shell sources nvm and runs whatever Node version you installed —
+# version-proof (no hardcoded vXX path). Needs ProtectHome=read-only (below)
+# so the nvm runtime under /home is readable.
+ExecStart=/bin/bash -lc 'source /home/opt/.nvm/nvm.sh && exec node dist/index.js'
 Restart=on-failure
 RestartSec=3
 
@@ -28,7 +31,8 @@ IOWeight=50
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
-ProtectHome=true
+# read-only (not true) so the nvm Node runtime under /home/<user> is readable.
+ProtectHome=read-only
 ReadWritePaths=/opt/levant/services/gateway
 ProtectControlGroups=true
 ProtectKernelTunables=true
