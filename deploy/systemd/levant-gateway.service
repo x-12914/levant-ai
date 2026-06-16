@@ -1,0 +1,38 @@
+# Levant AI Node gateway / BFF (Fastify + WebSocket).
+# Depends on the AI service. Adjust the Node path for your nvm install.
+
+[Unit]
+Description=Levant AI gateway (Node/Fastify)
+After=network.target levant-ai.service
+Wants=levant-ai.service
+
+[Service]
+Type=simple
+User=levant
+Group=levant
+WorkingDirectory=/opt/levant/services/gateway
+EnvironmentFile=/opt/levant/services/gateway/.env
+# Use an absolute node path (e.g. an nvm-installed runtime under the service user).
+ExecStart=/home/levant/.nvm/versions/node/v22.11.0/bin/node dist/index.js
+Restart=on-failure
+RestartSec=3
+
+# --- Isolation / resource guardrails ---
+MemoryMax=256M
+CPUQuota=40%
+TasksMax=128
+Nice=10
+IOWeight=50
+
+# --- Hardening ---
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/levant/services/gateway
+ProtectControlGroups=true
+ProtectKernelTunables=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,4 +1,4 @@
-# Tradexas
+# Levant AI
 
 A web trading workspace that aggregates accounts across multiple brokers
 (forex, stocks, crypto) into one **read-only** command center, with an AI
@@ -26,7 +26,7 @@ skill; the AI layer uses the `claude-api` skill (models default to Claude).
 ## Repository layout
 
 ```
-apps/web/             React SPA (the Tradexas dashboard)
+apps/web/             React SPA (the Levant AI dashboard)
 services/gateway/     Node/Fastify BFF + WebSocket
 services/ai/          Python/FastAPI AI + aggregation service
 deploy/               systemd units, nginx vhost, deploy guide
@@ -68,7 +68,7 @@ caps, existing reverse proxy) is in [deploy/README.md](deploy/README.md).
 - Reverse proxy: **existing nginx** (one added vhost, reload only)
 - Name + TLS: **DuckDNS hostname + `certbot --nginx`** (or `<ip>.nip.io`)
 - Database: **dedicated DB + role on the existing Postgres**
-- RAM: **conservative systemd caps (~0.9 GB)** — confirm `free -h` headroom before enabling
+- RAM: **conservative systemd caps (320M + 256M ≈ 0.58 GB)** — tuned for the box's 1.5 GiB available / full swap
 
 Full procedure and the exact commands are in [deploy/README.md](deploy/README.md).
 
@@ -78,4 +78,3 @@ Scaffold complete: theme + design system, the Trade Management dashboard from
 the reference, gateway and AI service skeletons, and the deploy guardrails.
 Next: account-aggregation connectors (read-only), wiring the dashboard to live
 data over WebSocket, and the AskAI chat UI.
-# trader

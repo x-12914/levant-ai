@@ -1,0 +1,38 @@
+# Levant AI Python AI/aggregation service (FastAPI via uvicorn).
+# Install to /etc/systemd/system/ and edit the placeholders marked <...>.
+# Resource caps are the main lever that keeps this from disrupting other apps
+# on the shared VPS — tune MemoryMax/CPUQuota to the headroom you confirmed.
+
+[Unit]
+Description=Levant AI AI service (FastAPI)
+After=network.target
+
+[Service]
+Type=simple
+User=levant
+Group=levant
+WorkingDirectory=/opt/levant/services/ai
+EnvironmentFile=/opt/levant/services/ai/.env
+ExecStart=/opt/levant/services/ai/.venv/bin/python -m app.main
+Restart=on-failure
+RestartSec=3
+
+# --- Isolation / resource guardrails (protect the host's other apps) ---
+MemoryMax=320M
+CPUQuota=40%
+TasksMax=128
+Nice=10
+IOWeight=50
+
+# --- Hardening ---
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/levant/services/ai
+ProtectControlGroups=true
+ProtectKernelTunables=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target
