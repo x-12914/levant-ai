@@ -85,9 +85,11 @@ curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
 source ~/.nvm/nvm.sh && nvm install 22
 
 # build the gateway and the SPA
-cd /opt/levant/services/gateway && npm ci && npm run build
-cd /opt/levant/apps/web && npm ci && npm run build
-ln -s /opt/levant/apps/web/dist /opt/levant/web   # where the nginx vhost looks
+# gateway has no committed lockfile -> use `npm install` (npm ci needs a lock and fails)
+cd /opt/levant/services/gateway && npm install && npm run build
+ls -l dist/index.js                                # sanity: build produced the entrypoint
+cd /opt/levant/apps/web && npm ci && npm run build  # web has a lockfile, npm ci is fine
+ln -s /opt/levant/apps/web/dist /opt/levant/web    # where the nginx vhost looks
 
 cd /opt/levant/services/gateway
 cp .env.example .env && nano .env && chmod 600 .env   # set JWT_SECRET, DATABASE_URL
@@ -208,7 +210,7 @@ is handled by certbot's systemd timer (`systemctl status certbot.timer`).
 cd /opt/levant && git pull
 cd /opt/levant/services/ai && .venv/bin/pip install -r requirements.txt
 source ~/.nvm/nvm.sh
-cd /opt/levant/services/gateway && npm ci && npm run build
+cd /opt/levant/services/gateway && npm install && npm run build
 cd /opt/levant/apps/web && npm ci && npm run build
 sudo systemctl restart levant-ai levant-gateway
 ```
