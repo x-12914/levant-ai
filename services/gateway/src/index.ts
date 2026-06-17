@@ -15,8 +15,7 @@ app.get("/api/health", async () => ({ ok: true, service: "gateway" }));
 // ── Proxy to the Python AI/aggregation service ──────────────────────────────
 // The browser never reaches the AI service or brokers directly; everything
 // flows through this BFF so auth and rate limiting live in one place.
-app.all("/api/ai/*", async (req, reply) => {
-  const upstreamPath = req.url.replace(/^\/api\/ai/, "");
+async function proxy(req: import("fastify").FastifyRequest, reply: import("fastify").FastifyReply, upstreamPath: string) {
   const res = await request(`${config.aiServiceUrl}${upstreamPath}`, {
     method: req.method as never,
     headers: { "content-type": "application/json" },
@@ -27,7 +26,13 @@ app.all("/api/ai/*", async (req, reply) => {
   const ct = res.headers["content-type"];
   if (ct) reply.header("content-type", ct);
   return res.body;
-});
+}
+
+// AskAI etc. → AI service /askai/*, /health (strip the /api/ai prefix).
+app.all("/api/ai/*", (req, reply) => proxy(req, reply, req.url.replace(/^\/api\/ai/, "")));
+
+// Read-only account aggregation → AI service /accounts/* (strip the /api prefix).
+app.all("/api/accounts/*", (req, reply) => proxy(req, reply, req.url.replace(/^\/api/, "")));
 
 // ── Read-only realtime feed ─────────────────────────────────────────────────
 // In production this fans out account/market updates from Redis pub/sub.

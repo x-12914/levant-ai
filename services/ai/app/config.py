@@ -23,6 +23,12 @@ class Settings(BaseSettings):
 
     secrets_master_key: str = ""
 
+    # Read-only Alpaca connector (optional). Leave blank to stay on demo data.
+    # Paper trading base: https://paper-api.alpaca.markets ; live: https://api.alpaca.markets
+    alpaca_api_key: str = ""
+    alpaca_api_secret: str = ""
+    alpaca_base_url: str = "https://paper-api.alpaca.markets"
+
     database_url: str = ""
     redis_url: str = "redis://127.0.0.1:6379/3"
 
