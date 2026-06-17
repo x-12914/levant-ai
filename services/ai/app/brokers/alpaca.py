@@ -19,9 +19,18 @@ def is_paper() -> bool:
     return "paper-api" in settings.alpaca_base_url
 
 
+def _base_url() -> str:
+    # Tolerate a trailing slash or an accidental "/v2" suffix (Alpaca shows the
+    # endpoint as .../v2); we add the /v2/<path> ourselves.
+    base = settings.alpaca_base_url.rstrip("/")
+    if base.endswith("/v2"):
+        base = base[:-3]
+    return base
+
+
 def _client() -> httpx.AsyncClient:
     return httpx.AsyncClient(
-        base_url=settings.alpaca_base_url,
+        base_url=_base_url(),
         headers={
             "APCA-API-KEY-ID": settings.alpaca_api_key,
             "APCA-API-SECRET-KEY": settings.alpaca_api_secret,
