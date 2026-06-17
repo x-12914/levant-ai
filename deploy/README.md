@@ -160,18 +160,19 @@ raise only after watching real usage (`systemctl status` shows live memory).
 
 ## 6. Name + TLS (DuckDNS + certbot) and the nginx vhost
 
-1. **Point a DuckDNS hostname at the VPS** — in the DuckDNS dashboard set your
-   subdomain (e.g. `yourname`) to the server's public IP. Confirm:
-   `dig +short yourname.duckdns.org` returns that IP.
-   *(No-signup alternative: skip DuckDNS and use `<vps-ip>.nip.io` as the name.)*
+The vhost is preconfigured for **`levant-ai.duckdns.org`**.
+
+1. **Confirm the DuckDNS name resolves to the VPS** (set its IP to the VPS's
+   public IP in the DuckDNS dashboard first — same IP as your other domains):
+
+   ```bash
+   dig +short levant-ai.duckdns.org      # should print the VPS public IP
+   ```
 
 2. **Install the vhost** (HTTP only — certbot adds TLS next):
 
    ```bash
    sudo cp /opt/levant/deploy/nginx/levant.conf /etc/nginx/sites-available/levant
-   # set server_name to your DuckDNS host:
-   sudo sed -i 's/<yourname>.duckdns.org/yourname.duckdns.org/' \
-     /etc/nginx/sites-available/levant
    sudo ln -s /etc/nginx/sites-available/levant /etc/nginx/sites-enabled/
    sudo nginx -t && sudo systemctl reload nginx     # reload, never restart
    ```
@@ -181,7 +182,7 @@ raise only after watching real usage (`systemctl status` shows live memory).
 
    ```bash
    sudo apt-get install -y certbot python3-certbot-nginx   # if not already present
-   sudo certbot --nginx -d yourname.duckdns.org
+   sudo certbot --nginx -d levant-ai.duckdns.org
    ```
 
 Both services bind to `127.0.0.1` only — nginx is the sole public face. Auto-renewal
